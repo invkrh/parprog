@@ -45,5 +45,32 @@ class ParallelParenthesesBalancingSuite extends FunSuite {
     check(").", false)
   }
 
+  test("parBalance should work") {
+    def check(input: String, expected: Boolean) =
+      assert(parBalance(input.toArray, 5) == expected,
+        s"balance($input) should be $expected")
 
+    check("(if (zero? x) max (/ 1 x))", true)
+    check("I told him (that it's not (yet) done). (But he wasn't listening)", true)
+    check("I told him (that it's not (yet) done). But he wasn't listening)", false)
+    check("(o_()", false)
+    check(":-)", false)
+    check("())(", false)
+  }
+
+  test("reduction function") {
+    import scala.util.Random._
+    def rdIntPair = (nextInt(20), if (nextDouble < 0.5) -nextInt(20) else 0)
+    val input = List.tabulate(100)(_ => rdIntPair)
+    val res1 = input.foldLeft((0, 0)) {
+      case ((accLeft, minLeft), (accRight, minRight)) =>
+        (accLeft + accRight, scala.math.min(minLeft, accLeft + minRight))
+    }
+    val res2 = input.foldRight((0, 0)) {
+      case ((accLeft, minLeft), (accRight, minRight)) =>
+        (accLeft + accRight, scala.math.min(minLeft, accLeft + minRight))
+    }
+
+    assert(res1 == res2, s"reduction function is not associative")
+  }
 }
