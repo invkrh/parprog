@@ -22,8 +22,8 @@ class IndexedColorFilter(initialImage: Img,
   private var steps = 0
 
   // What could we do here to speed up the computation?
-  val points = imageToPoints(initialImage)
-  val means = initializeIndex(colorCount, points)
+  val points = imageToPoints(initialImage).par
+  val means = initializeIndex(colorCount, points).par
 
   /* The work is done here: */
   private val newMeans = kMeans(points, means, 0.01)
@@ -40,13 +40,11 @@ class IndexedColorFilter(initialImage: Img,
 
   private def indexedImage(img: Img, means: GenSeq[Point]) = {
     val dst = new Img(img.width, img.height)
-    val pts = collection.mutable.Set[Point]()
 
     for (x <- 0 until img.width; y <- 0 until img.height) yield {
       val v = img(x, y)
       var point = new Point(red(v), green(v), blue(v))
       point = findClosest(point, means)
-      pts += point
       dst(x, y) = rgba(point.x, point.y, point.z, 1d)
     }
 
