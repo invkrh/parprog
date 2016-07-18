@@ -13,9 +13,21 @@ import barneshut.conctrees.ConcBuffer
 @RunWith(classOf[JUnitRunner])
 class BarnesHutSuite extends FunSuite {
 
+  test("computeBoundaries") {
+    val m = new SimulationModel
+    val s = new Simulator(m.taskSupport, m.timeStats)
+    val bodies = Seq.tabulate(10)(i => new Body(1, 2 + i, 3 + i, 4, 5))
+    val b = s.computeBoundaries(bodies)
+    assert(b.minX == 2)
+    assert(b.minY == 3)
+    assert(b.maxX == 11)
+    assert(b.maxY == 12)
+  }
+
   // test cases for quad tree
 
-import FloatOps._
+  import FloatOps._
+
   test("Empty: center of mass should be the center of the cell") {
     val quad = Empty(51f, 46.3f, 5f)
     assert(quad.massX == 51f, s"${quad.massX} should be 51f")
@@ -42,6 +54,15 @@ import FloatOps._
     assert(quad.total == 1, s"${quad.total} should be 1")
   }
 
+  test("Fork with 4 empty quadrants") {
+    val nw = Empty(17.5f, 27.5f, 5f)
+    val ne = Empty(22.5f, 27.5f, 5f)
+    val sw = Empty(17.5f, 32.5f, 5f)
+    val se = Empty(22.5f, 32.5f, 5f)
+    val quad = Fork(nw, ne, sw, se)
+    assert(quad.massX == 20)
+    assert(quad.massY == 30)
+  }
 
   test("Fork with 3 empty quadrants and 1 leaf (nw)") {
     val b = new Body(123f, 18f, 26f, 0f, 0f)
@@ -76,6 +97,14 @@ import FloatOps._
 
   // test cases for Body
 
+  test("Body.updated should consider a Fork as opaque if it is far away") {
+    val b1 = new Body(123f, 18f, 26f, 0f, 0f)
+    val body = b1.updated(Empty(50f, 60f, 5f))
+
+    assert(body.xspeed == 0f)
+    assert(body.yspeed == 0f)
+  }
+
   test("Body.updated should do nothing for Empty quad trees") {
     val b1 = new Body(123f, 18f, 26f, 0f, 0f)
     val body = b1.updated(Empty(50f, 60f, 5f))
@@ -98,6 +127,19 @@ import FloatOps._
   }
 
   // test cases for sector matrix
+  test("'SectorMatrix.+=' should add a body at (25,47) to the correct bucket of a sector matrix of size 100") {
+    val body = new Body(5, 25, 47, 0.1f, 0.1f)
+    val boundaries = new Boundaries()
+    boundaries.minX = 1
+    boundaries.minY = 1
+    boundaries.maxX = 101
+    boundaries.maxY = 101
+    val sm = new SectorMatrix(boundaries, SECTOR_PRECISION)
+    sm += body
+    val res = sm(1, 3).size == 1 && sm(1, 3).exists(_ == body)
+    assert(res, s"Body not found in the right sector")
+  }
+
 
   test("'SectorMatrix.+=' should add a body at (25,47) to the correct bucket of a sector matrix of size 96") {
     val body = new Body(5, 25, 47, 0.1f, 0.1f)
@@ -133,9 +175,10 @@ object FloatOps {
   implicit class FloatSequenceOps(val self: Seq[Float]) extends AnyVal {
     def ~=(that: Seq[Float]): Boolean =
       self.size == that.size &&
-        self.zip(that).forall { case (a, b) =>
-          abs(a - b) < precisionThreshold
-        }
+      self.zip(that).forall { case (a, b) =>
+        abs(a - b) < precisionThreshold
+      }
   }
+
 }
 
